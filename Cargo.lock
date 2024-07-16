@@ -2154,7 +2154,10 @@ checksum = "d231b230927b5e4ad203db57bbcbee2802f6bce620b1e4a9024a07d94e2907ec"
 name = "playground"
 version = "0.1.0"
 dependencies = [
+ "accesskit",
  "masonry",
+ "smallvec",
+ "tracing",
  "winit",
  "xilem",
 ]
