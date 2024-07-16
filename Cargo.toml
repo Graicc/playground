@@ -1,0 +1,9 @@
+[package]
+name = "playground"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+winit = "0.30.3"
+xilem = { git = "https://github.com/linebender/xilem"}
+masonry = { git = "https://github.com/linebender/xilem"}
