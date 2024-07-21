@@ -2,7 +2,7 @@ use accesskit::Role;
 use masonry::{
     app_driver::{AppDriver, DriverCtx},
     kurbo::{BezPath, Stroke},
-    paint_scene_helpers::fill_color,
+    paint_scene_helpers::{fill_color, stroke},
     parley::{
         self,
         style::{FontFamily, FontStack},
@@ -109,8 +109,6 @@ impl Widget for Panel {
                 if ctx.is_active() {
                     ctx.set_handled();
                     ctx.set_active(false);
-
-                    ctx.request_layout();
                 }
             }
             PointerEvent::PointerMove(state) => {
@@ -120,7 +118,15 @@ impl Widget for Panel {
                     let position = Point::new(position.x, position.y);
 
                     if let DraggingState::Dragging { offset, child } = self.dragging_state {
-                        let new_position = Point::new(position.x - offset.x, position.y - offset.y);
+                        let mut new_position =
+                            Point::new(position.x - offset.x, position.y - offset.y);
+
+                        new_position.x =
+                            new_position.x.clamp(0.0, ctx.size().width - MAX_SIZE.width);
+                        new_position.y = new_position
+                            .y
+                            .clamp(0.0, ctx.size().height - MAX_SIZE.height);
+
                         // println!("{position:?}");
                         self.children[child].position = new_position;
 
@@ -174,12 +180,19 @@ impl Widget for Panel {
 
     fn paint(&mut self, ctx: &mut PaintCtx, scene: &mut Scene) {
         for child in self.children.iter_mut().rev() {
-            fill_color(
-                scene,
-                &Rect::from_origin_size(child.position, Size::new(400., 400.)).inflate(10., 10.),
-                child.background_color,
-            );
+            let path = Rect::from_origin_size(child.position, MAX_SIZE).inflate(10., 10.);
+
+            stroke(scene, &path, Color::WHITE, 10.0);
+
+            fill_color(scene, &path, child.background_color);
             child.widget.paint(ctx, scene);
+        }
+
+        for slice in self.children.windows(2) {
+            if let [child1, child2] = slice {
+                let path = masonry::kurbo::Line::new(child1.position, child2.position);
+                stroke(scene, &path, Color::WHITE, 2.0);
+            }
         }
     }
 

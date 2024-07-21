@@ -1,5 +1,7 @@
 #![allow(unused)]
 
+use std::io::BufReader;
+
 use accesskit::Role;
 use masonry::{
     app_driver::{AppDriver, DriverCtx},
@@ -42,19 +44,27 @@ impl AppDriver for Driver {
     }
 }
 
-static FONT: FontFamily = FontFamily::Named("Source Code Pro");
+fn text(text: impl Into<masonry::ArcStr>) -> CodeBlock {
+    let mut code = CodeBlock::new(text);
+    code
 
-fn text(text: impl Into<masonry::ArcStr>) -> Prose {
-    Prose::new(text).with_font_family(FONT).with_text_size(40.)
+    // let mut prose = Prose::new(text).with_font(FONT).with_text_size(20.);
+    // let mut prose_mut: WidgetMut<'_, Prose> = prose.;
+    // WidgetMut::from(prose).set_text_properties(|layout| {
+    //     layout.rebuild_with_attributes();
+    // });
+    // prose
 }
 
 fn main() {
     let label1 = text("Hello");
     let label2 = text("World!");
 
+    let file_contents = std::fs::read_to_string("src/main.rs").unwrap();
+
     let children = vec![
-        panels::Child::new(Point::ORIGIN, text("Testing panel")),
-        panels::Child::new(Point::new(50., 50.), text("another panel")),
+        panels::Child::new(Point::ORIGIN, text("Testing panel asdf \n another line")),
+        panels::Child::new(Point::new(50., 50.), text(file_contents)),
         panels::Child::new(Point::new(100., 100.), text("and another panel")),
         panels::Child::new(
             Point::new(-100., 500.),
@@ -62,17 +72,7 @@ fn main() {
         ),
     ];
 
-    let main_widget = Split::columns(
-        Flex::column()
-            .with_child(label1)
-            .with_spacer(20.0)
-            .with_child(label2)
-            .with_spacer(20.0)
-            .with_child(CustomWidget("Haiii".into())),
-        // Panel::new(Point::new(50., 50.), text("Testing panel").with_text_brush(brush)),
-        Panel::new(children),
-    )
-    .draggable(true);
+    let main_widget = Panel::new(children);
 
     let window_attributes = Window::default_attributes()
         .with_title("Playground")
