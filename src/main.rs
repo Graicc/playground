@@ -1,29 +1,11 @@
-#![allow(unused)]
+#![allow(unused_variables)]
+#![allow(dead_code)]
 
-use std::io::BufReader;
-
-use accesskit::Role;
 use masonry::{
     app_driver::{AppDriver, DriverCtx},
-    kurbo::{BezPath, Stroke},
-    parley::{
-        self,
-        style::{FontFamily, FontStack},
-    },
-    vello::{
-        glyph::skrifa::raw::types::FixedSize,
-        peniko::{Brush, Fill},
-        Scene,
-    },
-    widget::{FillStrat, Label, RootWidget, *},
-    AccessCtx, AccessEvent, Action, Affine, BoxConstraints, Color, EventCtx, LayoutCtx, LifeCycle,
-    LifeCycleCtx, PaintCtx, Point, PointerEvent, Rect, Size, StatusChange, TextEvent, Widget,
-    WidgetId,
+    widget::RootWidget,
+    Action, WidgetId,
 };
-use parley::layout::Alignment;
-use parley::style::StyleProperty;
-use smallvec::SmallVec;
-use tracing::{trace_span, Span};
 use winit::{dpi::LogicalSize, window::Window};
 
 mod widget;
@@ -32,22 +14,20 @@ use widget::*;
 struct Driver;
 
 impl AppDriver for Driver {
-    fn on_action(&mut self, ctx: &mut DriverCtx<'_>, widget_id: WidgetId, action: Action) {
+    fn on_action(&mut self, _ctx: &mut DriverCtx<'_>, _widget_id: WidgetId, action: Action) {
         match action {
             Action::ButtonPressed(_) => {
                 println!("Hello!");
             }
-            action => {
+            _ => {
                 todo!();
             }
         }
     }
 }
 
-fn text(text: impl Into<masonry::ArcStr>) -> CodeBlock {
-    let mut code = CodeBlock::new(text);
-    code
-
+fn code_block(text: impl Into<masonry::ArcStr>) -> CodeBlock {
+    CodeBlock::new(text)
     // let mut prose = Prose::new(text).with_font(FONT).with_text_size(20.);
     // let mut prose_mut: WidgetMut<'_, Prose> = prose.;
     // WidgetMut::from(prose).set_text_properties(|layout| {
@@ -57,22 +37,21 @@ fn text(text: impl Into<masonry::ArcStr>) -> CodeBlock {
 }
 
 fn main() {
-    let label1 = text("Hello");
-    let label2 = text("World!");
-
     let file_contents = std::fs::read_to_string("src/main.rs").unwrap();
 
-    let children = vec![
-        panels::Child::new(Point::ORIGIN, text("Testing panel asdf \n another line")),
-        panels::Child::new(Point::new(50., 50.), text(file_contents)),
-        panels::Child::new(Point::new(100., 100.), text("and another panel")),
-        panels::Child::new(
-            Point::new(-100., 500.),
-            Flex::column().with_child(Button::new("HI")),
-        ),
-    ];
+    // let children = vec![
+    //     // panels::Child::new(Point::ORIGIN, text("Testing panel asdf \n another line")),
+    //     panels::Child::new(Point::new(50., 50.), code_block(file_contents)),
+    //     // panels::Child::new(Point::new(100., 100.), text("and another panel")),
+    //     // panels::Child::new(
+    //     //     Point::new(-100., 500.),
+    //     //     Flex::column().with_child(Button::new("HI")),
+    //     // ),
+    // ];
+    //
+    // let main_widget = Panel::new(children);
 
-    let main_widget = Panel::new(children);
+    let main_widget = code_block(file_contents);
 
     let window_attributes = Window::default_attributes()
         .with_title("Playground")

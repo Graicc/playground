@@ -4,14 +4,15 @@ use masonry::{
         style::{FontStack, StyleProperty},
         FontContext, LayoutContext,
     },
-    text2::{TextLayout, TextStorage},
+    text2::TextLayout,
     vello::{peniko::BlendMode, Scene},
     AccessCtx, AccessEvent, Affine, BoxConstraints, Color, EventCtx, LayoutCtx, LifeCycle,
     LifeCycleCtx, PaintCtx, Point, PointerEvent, Size, StatusChange, TextEvent, Widget, WidgetId,
 };
 use smallvec::SmallVec;
-use std::{default, ops::RangeBounds, str::CharIndices, sync::Arc};
+use std::sync::Arc;
 use tracing::trace;
+use tree_sitter::Parser;
 
 // From label.rs
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -35,12 +36,32 @@ static FONT: FontStack = FontStack::Source("Source Code Pro");
 
 impl CodeBlock {
     pub fn new(text: impl Into<Arc<str>>) -> Self {
-        let mut text_layout = TextLayout::new(text.into(), 20.0);
+        let text = text.into();
+
+        let mut parser = Parser::new();
+
+        let mut text_layout = TextLayout::new(text.clone(), 20.0);
         text_layout.set_font(FONT);
+
+        let language = tree_sitter_rust::language();
+        parser
+            .set_language(&language)
+            .expect("Error loading Rust grammar");
+        let tree = parser.parse(text.clone().as_ref(), None).unwrap();
+
+        let fn_query = tree_sitter::Query::new(
+            &language,
+            "(source_file (function_item name: (identifier) @function_name))",
+        )
+        .unwrap();
+        let mut query_cursor = tree_sitter::QueryCursor::new();
+        let fns = query_cursor
+            .captures(&fn_query, tree.root_node(), text.as_bytes())
+            .map(|(m, _)| m.captures[0].node);
 
         let colors = &[Color::RED, Color::BLUE];
 
-        let binding = text_layout.text().clone();
+        let binding = text.clone();
         let split_points = binding.char_indices().filter_map(|(i, c)| {
             if c.is_ascii_whitespace() {
                 Some(i)
@@ -57,6 +78,13 @@ impl CodeBlock {
                     x.push(
                         &StyleProperty::Brush(colors[count % colors.len()].into()),
                         l..=r,
+                    );
+                }
+
+                for a in fns {
+                    x.push(
+                        &StyleProperty::Brush(Color::GREEN.into()),
+                        a.start_byte()..a.end_byte(),
                     );
                 }
 

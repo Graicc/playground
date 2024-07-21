@@ -26,7 +26,7 @@ use winit::{
     window::Window,
 };
 
-const MAX_SIZE: masonry::Size = Size::new(400.0, 400.0);
+const MAX_SIZE: masonry::Size = Size::new(400.0, 4000.0);
 
 pub struct Child {
     pub position: Point,
@@ -121,11 +121,12 @@ impl Widget for Panel {
                         let mut new_position =
                             Point::new(position.x - offset.x, position.y - offset.y);
 
-                        new_position.x =
-                            new_position.x.clamp(0.0, ctx.size().width - MAX_SIZE.width);
+                        new_position.x = new_position
+                            .x
+                            .clamp(0.0, (ctx.size().width - MAX_SIZE.width).max(0.0));
                         new_position.y = new_position
                             .y
-                            .clamp(0.0, ctx.size().height - MAX_SIZE.height);
+                            .clamp(0.0, (ctx.size().height - MAX_SIZE.height).max(0.0));
 
                         // println!("{position:?}");
                         self.children[child].position = new_position;
