@@ -10,9 +10,10 @@ cc="*"
 winit = "0.30.3"
 xilem = { git = "https://github.com/linebender/xilem"}
 masonry = { git = "https://github.com/linebender/xilem"}
-accesskit = "0.15.0"
+accesskit = "0.16.0"
 smallvec = "1.13.2"
 tracing = "0.1.40"
 itertools = "0.13.0"
 tree-sitter = "0.22.6"
 tree-sitter-rust = "0.21.2"
+tree-sitter-highlight = "0.22.6"
