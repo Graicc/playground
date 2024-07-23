@@ -1,32 +1,15 @@
 use accesskit::Role;
 use masonry::{
-    app_driver::{AppDriver, DriverCtx},
-    kurbo::{BezPath, Stroke},
     paint_scene_helpers::{fill_color, stroke},
-    parley::{
-        self,
-        style::{FontFamily, FontStack},
-    },
-    vello::{
-        glyph::skrifa::raw::types::FixedSize,
-        peniko::{Brush, Fill},
-        Scene,
-    },
-    widget::{FillStrat, Label, RootWidget, *},
-    AccessCtx, AccessEvent, Action, Affine, BoxConstraints, Color, EventCtx, LayoutCtx, LifeCycle,
-    LifeCycleCtx, PaintCtx, Point, PointerEvent, Rect, Size, StatusChange, TextEvent, Vec2, Widget,
-    WidgetId,
+    vello::Scene,
+    widget::*,
+    AccessCtx, AccessEvent, BoxConstraints, Color, EventCtx, LayoutCtx, LifeCycle, LifeCycleCtx,
+    PaintCtx, Point, PointerEvent, Rect, Size, StatusChange, TextEvent, Widget, WidgetId,
 };
-use parley::layout::Alignment;
-use parley::style::StyleProperty;
 use smallvec::SmallVec;
 use tracing::{trace_span, Span};
-use winit::{
-    dpi::{LogicalPosition, LogicalSize},
-    window::Window,
-};
 
-const MAX_SIZE: masonry::Size = Size::new(400.0, 4000.0);
+const MAX_SIZE: masonry::Size = Size::new(400.0, 400.0);
 
 pub struct Child {
     pub position: Point,
@@ -39,7 +22,7 @@ impl Child {
         Self {
             position,
             widget: WidgetPod::new(widget).boxed(),
-            background_color: Color::GRAY,
+            background_color: Color::parse("#1F1F1F").unwrap(),
         }
     }
 

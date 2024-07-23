@@ -4,7 +4,7 @@
 use masonry::{
     app_driver::{AppDriver, DriverCtx},
     widget::RootWidget,
-    Action, WidgetId,
+    Action, Point, WidgetId,
 };
 use winit::{dpi::LogicalSize, window::Window};
 
@@ -37,21 +37,25 @@ fn code_block(text: impl Into<masonry::ArcStr>) -> CodeBlock {
 }
 
 fn main() {
-    let file_contents = std::fs::read_to_string("src/main.rs").unwrap();
+    let file_contents = std::fs::read_to_string("src/widget/code.rs").unwrap();
+    let file_contents2 = std::fs::read_to_string("src/main.rs").unwrap();
 
-    // let children = vec![
-    //     // panels::Child::new(Point::ORIGIN, text("Testing panel asdf \n another line")),
-    //     panels::Child::new(Point::new(50., 50.), code_block(file_contents)),
-    //     // panels::Child::new(Point::new(100., 100.), text("and another panel")),
-    //     // panels::Child::new(
-    //     //     Point::new(-100., 500.),
-    //     //     Flex::column().with_child(Button::new("HI")),
-    //     // ),
-    // ];
-    //
-    // let main_widget = Panel::new(children);
+    let child = masonry::widget::Portal::new(code_block(file_contents))
+        .constrain_vertical(true)
+        .constrain_horizontal(true);
 
-    let main_widget = code_block(file_contents);
+    let children = vec![
+        // panels::Child::new(Point::ORIGIN, text("Testing panel asdf \n another line")),
+        // panels::Child::new(Point::new(100., 100.), text("and another panel")),
+        // panels::Child::new(
+        panels::Child::new(Point::new(50., 50.), child),
+        panels::Child::new(Point::new(100., 50.), code_block(file_contents2)),
+        //     Point::new(-100., 500.),
+        //     Flex::column().with_child(Button::new("HI")),
+        // ),
+    ];
+
+    let main_widget = Panel::new(children);
 
     let window_attributes = Window::default_attributes()
         .with_title("Playground")

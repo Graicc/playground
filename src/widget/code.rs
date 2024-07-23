@@ -1,10 +1,9 @@
-use itertools::Itertools;
 use masonry::{
     parley::{
         style::{FontStack, StyleProperty},
         FontContext, LayoutContext,
     },
-    text2::TextLayout,
+    text::TextLayout,
     vello::{peniko::BlendMode, Scene},
     AccessCtx, AccessEvent, Affine, BoxConstraints, Color, EventCtx, LayoutCtx, LifeCycle,
     LifeCycleCtx, PaintCtx, Point, PointerEvent, Size, StatusChange, TextEvent, Widget, WidgetId,
@@ -13,6 +12,10 @@ use smallvec::SmallVec;
 use std::sync::Arc;
 use tracing::trace;
 use tree_sitter::Parser;
+use tree_sitter_highlight::HighlightConfiguration;
+use accesskit::Role;
+
+use super::colors::get_colors;
 
 // From label.rs
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -33,6 +36,7 @@ pub struct CodeBlock {
 }
 
 static FONT: FontStack = FontStack::Source("Source Code Pro");
+const FONT_SIZE: f32 = 14.0;
 
 impl CodeBlock {
     pub fn new(text: impl Into<Arc<str>>) -> Self {
@@ -40,53 +44,87 @@ impl CodeBlock {
 
         let mut parser = Parser::new();
 
-        let mut text_layout = TextLayout::new(text.clone(), 20.0);
-        text_layout.set_font(FONT);
-
         let language = tree_sitter_rust::language();
         parser
             .set_language(&language)
             .expect("Error loading Rust grammar");
-        let tree = parser.parse(text.clone().as_ref(), None).unwrap();
+        let mut highlighter = tree_sitter_highlight::Highlighter::new();
+        let highlight_config = get_colors();
 
-        let fn_query = tree_sitter::Query::new(
-            &language,
-            "(source_file (function_item name: (identifier) @function_name))",
+        let mut rust_config = HighlightConfiguration::new(
+            language,
+            "rust",
+            tree_sitter_rust::HIGHLIGHTS_QUERY,
+            tree_sitter_rust::INJECTIONS_QUERY,
+            "",
         )
         .unwrap();
-        let mut query_cursor = tree_sitter::QueryCursor::new();
-        let fns = query_cursor
-            .captures(&fn_query, tree.root_node(), text.as_bytes())
-            .map(|(m, _)| m.captures[0].node);
 
-        let colors = &[Color::RED, Color::BLUE];
+        let names: Vec<_> = highlight_config.iter().map(|x| x.0).collect();
+        rust_config.configure(&names);
 
-        let binding = text.clone();
-        let split_points = binding.char_indices().filter_map(|(i, c)| {
-            if c.is_ascii_whitespace() {
-                Some(i)
-            } else {
-                None
-            }
-        });
+        let highlights = highlighter
+            .highlight(&rust_config, text.as_bytes(), None, |_| None)
+            .unwrap();
+
+        let tree = parser.parse(text.clone().as_ref(), None).unwrap();
+
+        // let fn_query = tree_sitter::Query::new(
+        //     &language,
+        //     "(source_file (function_item name: (identifier) @function_name))",
+        // )
+        // .unwrap();
+        // let mut query_cursor = tree_sitter::QueryCursor::new();
+        // let fns = query_cursor
+        //     .captures(&fn_query, tree.root_node(), text.as_bytes())
+        //     .map(|(m, _)| m.captures[0].node);
+
+        let mut text_layout = TextLayout::new(text.clone(), FONT_SIZE);
+        text_layout.set_font(FONT);
+
+        // let colors = &[Color::RED, Color::BLUE];
+        //
+        // let binding = text.clone();
+        // let split_points = binding.char_indices().filter_map(|(i, c)| {
+        //     if c.is_ascii_whitespace() {
+        //         Some(i)
+        //     } else {
+        //         None
+        //     }
+        // });
 
         text_layout.rebuild_with_attributes(
             &mut FontContext::default(),
             &mut LayoutContext::default(),
             |mut x| {
-                for (count, (l, r)) in split_points.tuple_windows().enumerate() {
-                    x.push(
-                        &StyleProperty::Brush(colors[count % colors.len()].into()),
-                        l..=r,
-                    );
+                // for (count, (l, r)) in split_points.tuple_windows().enumerate() {
+                //     x.push(
+                //         &StyleProperty::Brush(colors[count % colors.len()].into()),
+                //         l..=r,
+                //     );
+                // }
+
+                let mut color = Color::WHITE;
+                for h in highlights {
+                    match h.unwrap() {
+                        tree_sitter_highlight::HighlightEvent::Source { start, end } => {
+                            x.push(&StyleProperty::Brush(color.into()), start..end);
+                        }
+                        tree_sitter_highlight::HighlightEvent::HighlightStart(s) => {
+                            color = highlight_config[s.0].1;
+                        }
+                        tree_sitter_highlight::HighlightEvent::HighlightEnd => {
+                            color = Color::WHITE;
+                        }
+                    }
                 }
 
-                for a in fns {
-                    x.push(
-                        &StyleProperty::Brush(Color::GREEN.into()),
-                        a.start_byte()..a.end_byte(),
-                    );
-                }
+                // for a in fns {
+                //     x.push(
+                //         &StyleProperty::Brush(Color::GREEN.into()),
+                //         a.start_byte()..a.end_byte(),
+                //     );
+                // }
 
                 // x.push(&StyleProperty::FontSize(40.0), 2..=4);
                 x
@@ -173,8 +211,8 @@ impl Widget for CodeBlock {
         }
     }
 
-    fn accessibility_role(&self) -> accesskit::Role {
-        accesskit::Role::StaticText
+    fn accessibility_role(&self) -> Role {
+        accesskit::Role::Paragraph
     }
 
     fn accessibility(&mut self, ctx: &mut AccessCtx) {
