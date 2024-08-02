@@ -1,15 +1,18 @@
 use accesskit::Role;
 use masonry::{
     paint_scene_helpers::{fill_color, stroke},
-    vello::Scene,
+    vello::{peniko::BlendMode, Scene},
     widget::*,
-    AccessCtx, AccessEvent, BoxConstraints, Color, EventCtx, LayoutCtx, LifeCycle, LifeCycleCtx,
-    PaintCtx, Point, PointerEvent, Rect, Size, StatusChange, TextEvent, Widget, WidgetId,
+    AccessCtx, AccessEvent, Affine, BoxConstraints, Color, EventCtx, LayoutCtx, LifeCycle,
+    LifeCycleCtx, PaintCtx, Point, PointerEvent, Rect, Size, StatusChange, TextEvent, Widget,
+    WidgetId,
 };
 use smallvec::SmallVec;
 use tracing::{trace_span, Span};
+use winit::dpi::LogicalPosition;
 
 const MAX_SIZE: masonry::Size = Size::new(400.0, 400.0);
+const ZOOM_SENSITIVITY: f64 = 0.05;
 
 pub struct Child {
     pub position: Point,
@@ -48,6 +51,7 @@ enum DraggingState {
 pub struct Panel {
     pub children: Vec<Child>,
     dragging_state: DraggingState,
+    scale: f64,
 }
 
 impl Panel {
@@ -55,7 +59,16 @@ impl Panel {
         Self {
             children,
             dragging_state: DraggingState::NotDragging,
+            scale: 1.0,
         }
+    }
+
+    fn logical_position_to_point(&self, ctx: &EventCtx, position: LogicalPosition<f64>) -> Point {
+        let position = Point::new(position.x, position.y);
+        let position = position - ctx.to_window(Point::ZERO);
+        let position = position / self.scale;
+        let position = Point::new(position.x, position.y);
+        return position;
     }
 }
 
@@ -66,10 +79,7 @@ impl Widget for Panel {
     fn on_pointer_event(&mut self, ctx: &mut EventCtx, event: &PointerEvent) {
         match event {
             PointerEvent::PointerDown(masonry::PointerButton::Secondary, state) => {
-                let position = Point::new(state.position.x, state.position.y);
-                let position = position - ctx.to_window(Point::ZERO);
-                let position = Point::new(position.x, position.y);
-                println!("{position:?}");
+                let position = self.logical_position_to_point(ctx, state.position);
 
                 if let Some((i, child)) = self
                     .children
@@ -79,7 +89,6 @@ impl Widget for Panel {
                 {
                     ctx.set_active(true);
                     ctx.set_handled();
-                    println!("CHILD FOUND");
 
                     let offset = child.to_local_space(position);
                     self.dragging_state = DraggingState::Dragging { offset, child: i }
@@ -96,9 +105,7 @@ impl Widget for Panel {
             }
             PointerEvent::PointerMove(state) => {
                 if ctx.is_active() {
-                    let position = Point::new(state.position.x, state.position.y);
-                    let position = position - ctx.to_window(Point::ZERO);
-                    let position = Point::new(position.x, position.y);
+                    let position = self.logical_position_to_point(ctx, state.position);
 
                     if let DraggingState::Dragging { offset, child } = self.dragging_state {
                         let mut new_position =
@@ -118,6 +125,10 @@ impl Widget for Panel {
                         ctx.request_paint();
                     }
                 }
+            }
+            PointerEvent::MouseWheel(delta, _) => {
+                self.scale += delta.y * ZOOM_SENSITIVITY;
+                ctx.request_paint();
             }
             _ => {}
         }
@@ -163,21 +174,27 @@ impl Widget for Panel {
     }
 
     fn paint(&mut self, ctx: &mut PaintCtx, scene: &mut Scene) {
+        let mut scratch_scene = Scene::new();
         for child in self.children.iter_mut().rev() {
             let path = Rect::from_origin_size(child.position, MAX_SIZE).inflate(10., 10.);
 
-            stroke(scene, &path, Color::WHITE, 10.0);
+            stroke(&mut scratch_scene, &path, Color::WHITE, 10.0);
 
-            fill_color(scene, &path, child.background_color);
-            child.widget.paint(ctx, scene);
+            fill_color(&mut scratch_scene, &path, child.background_color);
+
+            scratch_scene.push_layer(BlendMode::default(), 1.0, Affine::IDENTITY, &path);
+            child.widget.paint(ctx, &mut scratch_scene);
+            scratch_scene.pop_layer();
         }
 
-        for slice in self.children.windows(2) {
-            if let [child1, child2] = slice {
-                let path = masonry::kurbo::Line::new(child1.position, child2.position);
-                stroke(scene, &path, Color::WHITE, 2.0);
-            }
-        }
+        // for slice in self.children.windows(2) {
+        //     if let [child1, child2] = slice {
+        //         let path = masonry::kurbo::Line::new(child1.position, child2.position);
+        //         stroke(&mut scratch_scene, &path, Color::WHITE, 2.0);
+        //     }
+        // }
+
+        scene.append(&scratch_scene, Some(Affine::scale(self.scale)));
     }
 
     fn accessibility(&mut self, ctx: &mut AccessCtx) {
