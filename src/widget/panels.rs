@@ -11,11 +11,11 @@ use smallvec::SmallVec;
 use tracing::{trace_span, Span};
 use winit::dpi::LogicalPosition;
 
-const MAX_SIZE: masonry::Size = Size::new(400.0, 400.0);
 const ZOOM_SENSITIVITY: f64 = 0.05;
 
 pub struct Child {
     pub position: Point,
+    pub size: Size,
     pub widget: WidgetPod<Box<dyn Widget>>,
     pub background_color: Color,
 }
@@ -26,15 +26,16 @@ impl Child {
             position,
             widget: WidgetPod::new(widget).boxed(),
             background_color: Color::parse("#1F1F1F").unwrap(),
+            size: Size::ZERO,
         }
     }
 
     fn overlap(&self, position: Point) -> bool {
         let local_space = self.to_local_space(position);
         local_space.x > 0.0
-            && local_space.x < MAX_SIZE.width
+            && local_space.x < self.size.width
             && local_space.y > 0.0
-            && local_space.y < MAX_SIZE.height
+            && local_space.y < self.size.height
     }
 
     fn to_local_space(&self, position: Point) -> Point {
@@ -76,6 +77,7 @@ impl Widget for Panel {
     fn on_pointer_event(&mut self, ctx: &mut EventCtx, event: &PointerEvent) {
         match event {
             PointerEvent::PointerDown(masonry::PointerButton::Secondary, state) => {
+                println!("Event");
                 let position = self.logical_position_to_point(ctx, state.position);
 
                 if let Some((i, child)) = self
@@ -110,10 +112,10 @@ impl Widget for Panel {
 
                         new_position.x = new_position
                             .x
-                            .clamp(0.0, (ctx.size().width - MAX_SIZE.width).max(0.0));
+                            .clamp(0.0, (ctx.size().width - self.children[child].size.width).max(0.0));
                         new_position.y = new_position
                             .y
-                            .clamp(0.0, (ctx.size().height - MAX_SIZE.height).max(0.0));
+                            .clamp(0.0, (ctx.size().height - self.children[child].size.height).max(0.0));
 
                         // println!("{position:?}");
                         self.children[child].position = new_position;
@@ -152,23 +154,22 @@ impl Widget for Panel {
     fn on_status_change(&mut self, _ctx: &mut LifeCycleCtx, _event: &StatusChange) {}
 
     fn layout(&mut self, ctx: &mut LayoutCtx, bc: &BoxConstraints) -> Size {
-        let child_bc = BoxConstraints::new(Size::new(0.0, 0.0), MAX_SIZE.into());
         for child in &mut self.children {
-            child.widget.layout(ctx, &child_bc);
+            child.size = child.widget.layout(ctx, &BoxConstraints::UNBOUNDED);
             ctx.place_child(&mut child.widget, child.position);
         }
 
         if bc.is_width_bounded() && bc.is_height_bounded() {
             bc.max()
         } else {
-            let size = Size::new(100.0, 100.0);
+            let size = Size::new(10_000.0, 10_000.0);
             bc.constrain(size)
         }
     }
 
     fn paint(&mut self, ctx: &mut PaintCtx, scene: &mut Scene) {
         for child in self.children.iter_mut().rev() {
-            let path = Rect::from_origin_size(child.position, MAX_SIZE).inflate(10., 10.);
+            let path = Rect::from_origin_size(child.position, child.size).inflate(10., 10.);
 
             stroke(scene, &path, Color::WHITE, 10.0);
 
@@ -179,12 +180,12 @@ impl Widget for Panel {
             scene.pop_layer();
         }
 
-        // for slice in self.children.windows(2) {
-        //     if let [child1, child2] = slice {
-        //         let path = masonry::kurbo::Line::new(child1.position, child2.position);
-        //         stroke(&mut scratch_scene, &path, Color::WHITE, 2.0);
-        //     }
-        // }
+        for slice in self.children.windows(2) {
+            if let [child1, child2] = slice {
+                let path = masonry::kurbo::Line::new(child1.position, child2.position);
+                stroke(scene, &path, Color::WHITE, 2.0);
+            }
+        }
     }
 
     fn accessibility(&mut self, ctx: &mut AccessCtx) {
