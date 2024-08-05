@@ -51,7 +51,6 @@ enum DraggingState {
 pub struct Panel {
     pub children: Vec<Child>,
     dragging_state: DraggingState,
-    scale: f64,
 }
 
 impl Panel {
@@ -59,14 +58,12 @@ impl Panel {
         Self {
             children,
             dragging_state: DraggingState::NotDragging,
-            scale: 1.0,
         }
     }
 
     fn logical_position_to_point(&self, ctx: &EventCtx, position: LogicalPosition<f64>) -> Point {
         let position = Point::new(position.x, position.y);
         let position = position - ctx.to_window(Point::ZERO);
-        let position = position / self.scale;
         let position = Point::new(position.x, position.y);
         return position;
     }
@@ -126,10 +123,6 @@ impl Widget for Panel {
                     }
                 }
             }
-            PointerEvent::MouseWheel(delta, _) => {
-                self.scale += delta.y * ZOOM_SENSITIVITY;
-                ctx.request_paint();
-            }
             _ => {}
         }
 
@@ -174,17 +167,16 @@ impl Widget for Panel {
     }
 
     fn paint(&mut self, ctx: &mut PaintCtx, scene: &mut Scene) {
-        let mut scratch_scene = Scene::new();
         for child in self.children.iter_mut().rev() {
             let path = Rect::from_origin_size(child.position, MAX_SIZE).inflate(10., 10.);
 
-            stroke(&mut scratch_scene, &path, Color::WHITE, 10.0);
+            stroke(scene, &path, Color::WHITE, 10.0);
 
-            fill_color(&mut scratch_scene, &path, child.background_color);
+            fill_color(scene, &path, child.background_color);
 
-            scratch_scene.push_layer(BlendMode::default(), 1.0, Affine::IDENTITY, &path);
-            child.widget.paint(ctx, &mut scratch_scene);
-            scratch_scene.pop_layer();
+            scene.push_layer(BlendMode::default(), 1.0, Affine::IDENTITY, &path);
+            child.widget.paint(ctx, scene);
+            scene.pop_layer();
         }
 
         // for slice in self.children.windows(2) {
@@ -193,8 +185,6 @@ impl Widget for Panel {
         //         stroke(&mut scratch_scene, &path, Color::WHITE, 2.0);
         //     }
         // }
-
-        scene.append(&scratch_scene, Some(Affine::scale(self.scale)));
     }
 
     fn accessibility(&mut self, ctx: &mut AccessCtx) {

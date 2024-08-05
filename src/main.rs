@@ -3,7 +3,7 @@
 
 use masonry::{
     app_driver::{AppDriver, DriverCtx},
-    widget::RootWidget,
+    widget::{Button, Flex, Label, RootWidget, SizedBox},
     Action, Point, WidgetId,
 };
 use winit::{dpi::LogicalSize, window::Window};
@@ -37,25 +37,40 @@ fn code_block(text: impl Into<masonry::ArcStr>) -> CodeBlock {
 }
 
 fn main() {
-    let file_contents = std::fs::read_to_string("src/widget/code.rs").unwrap();
-    let file_contents2 = std::fs::read_to_string("src/main.rs").unwrap();
+    // {
+    //     let file_contents = std::fs::read_to_string("src/widget/code.rs").unwrap();
+    //     let file_contents2 = std::fs::read_to_string("src/main.rs").unwrap();
+    //
+    //     let child = masonry::widget::Portal::new(code_block(file_contents))
+    //         .constrain_vertical(true)
+    //         .constrain_horizontal(true);
+    //
+    //     let children = vec![
+    //         // panels::Child::new(Point::ORIGIN, text("Testing panel asdf \n another line")),
+    //         // panels::Child::new(Point::new(100., 100.), text("and another panel")),
+    //         // panels::Child::new(
+    //         panels::Child::new(Point::new(50., 50.), child),
+    //         panels::Child::new(Point::new(100., 50.), code_block(file_contents2)),
+    //         //     Point::new(-100., 500.),
+    //         //     Flex::column().with_child(Button::new("HI")),
+    //         // ),
+    //     ];
+    //
+    //     let main_widget = Panel::new(children);
+    // }
 
-    let child = masonry::widget::Portal::new(code_block(file_contents))
-        .constrain_vertical(true)
-        .constrain_horizontal(true);
-
-    let children = vec![
-        // panels::Child::new(Point::ORIGIN, text("Testing panel asdf \n another line")),
-        // panels::Child::new(Point::new(100., 100.), text("and another panel")),
-        // panels::Child::new(
-        panels::Child::new(Point::new(50., 50.), child),
-        panels::Child::new(Point::new(100., 50.), code_block(file_contents2)),
-        //     Point::new(-100., 500.),
-        //     Flex::column().with_child(Button::new("HI")),
-        // ),
-    ];
-
-    let main_widget = Panel::new(children);
+    let file_contents = std::fs::read_to_string("src/widget/canvas.rs").unwrap();
+    let canvas = Canvas::new(
+        Flex::column()
+            .with_child(Label::new("I'm inside a canvas"))
+            .with_child(Button::new("I'm a button inside a canvas"))
+            .with_child(CodeBlock::new(file_contents)),
+    );
+    let main_widget = Flex::column()
+        .with_child(Label::new("A label above the canvas"))
+        .with_spacer(10.0)
+        .with_child(SizedBox::new(canvas).width(400.).height(400.))
+        .with_child(Button::new("A button below the canvas"));
 
     let window_attributes = Window::default_attributes()
         .with_title("Playground")
