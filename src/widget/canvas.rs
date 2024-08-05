@@ -36,7 +36,7 @@ impl<W: Widget> Canvas<W> {
     }
 
     /// Where this point would be if the canvas had no transforms (used for passing to children)
-    fn point_to_faux_point(&self, ctx: &EventCtx, position: Point) -> Point {
+    fn point_to_mock_point(&self, ctx: &EventCtx, position: Point) -> Point {
         let position = position - ctx.to_window(Point::ZERO);
         let position = Point::new(position.x, position.y);
         let position = self.transform.inverse() * position;
@@ -96,17 +96,25 @@ impl<W: Widget> Widget for Canvas<W> {
                 }
             }
             PointerEvent::MouseWheel(delta, state) => {
-                // TODO: this has error buildup because of the multiplication
-
-                let scale_focus = self
+                let focus_point = self
                     .point_to_local_space(ctx, Point::new(state.position.x, state.position.y))
                     .to_vec2();
 
-                self.transform = self.transform
-                    * Affine::IDENTITY
-                        .then_translate(-scale_focus)
-                        .then_scale(1.0 + delta.y * ZOOM_SENSITIVITY)
-                        .then_translate(scale_focus);
+                let initial_scale = self.transform.determinant().sqrt();
+                let new_scale = initial_scale + delta.y * ZOOM_SENSITIVITY;
+                let new_scale = new_scale.max(ZOOM_SENSITIVITY);
+
+                self.transform = Affine::IDENTITY
+                    .then_scale(new_scale)
+                    .then_translate(self.transform.translation());
+
+                let focus_point_end = self
+                    .point_to_local_space(ctx, Point::new(state.position.x, state.position.y))
+                    .to_vec2();
+
+                // adjust for the fact that we zoom in on the origin
+                let delta = focus_point_end - focus_point;
+                self.transform = self.transform.pre_translate(delta);
 
                 ctx.request_paint();
             }
@@ -122,8 +130,8 @@ impl<W: Widget> Widget for Canvas<W> {
             event.pointer_state().physical_position.y,
         );
 
-        let logical_position = self.point_to_faux_point(ctx, logical_position);
-        let physical_position = self.point_to_faux_point(ctx, physical_position);
+        let logical_position = self.point_to_mock_point(ctx, logical_position);
+        let physical_position = self.point_to_mock_point(ctx, physical_position);
 
         let state = PointerState {
             physical_position: PhysicalPosition::new(physical_position.x, physical_position.y),
