@@ -1,6 +1,5 @@
 use accesskit::Role;
 use masonry::{
-    paint_scene_helpers::fill_color,
     paint_scene_helpers::stroke,
     vello::{peniko::BlendMode, Scene},
     AccessCtx, AccessEvent, Affine, BoxConstraints, Color, CursorIcon, EventCtx, LayoutCtx,

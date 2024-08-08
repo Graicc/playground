@@ -3,13 +3,15 @@
 
 use masonry::{
     app_driver::{AppDriver, DriverCtx},
-    widget::{Button, Flex, Label, RootWidget, SizedBox},
+    widget::RootWidget,
     Action, Point, WidgetId,
 };
 use winit::{dpi::LogicalSize, window::Window};
 
 mod widget;
 use widget::*;
+
+mod lsp;
 
 struct Driver;
 
@@ -26,21 +28,13 @@ impl AppDriver for Driver {
     }
 }
 
-fn code_block(text: impl Into<masonry::ArcStr>) -> CodeBlock {
-    CodeBlock::new(text)
-    // let mut prose = Prose::new(text).with_font(FONT).with_text_size(20.);
-    // let mut prose_mut: WidgetMut<'_, Prose> = prose.;
-    // WidgetMut::from(prose).set_text_properties(|layout| {
-    //     layout.rebuild_with_attributes();
-    // });
-    // prose
-}
-
 fn main() {
+    // let lsp = lsp::LSP::new();
+
     let file_contents = std::fs::read_to_string("src/widget/code.rs").unwrap();
     let file_contents2 = std::fs::read_to_string("src/main.rs").unwrap();
 
-    let child = masonry::widget::Portal::new(code_block(file_contents))
+    let child = masonry::widget::Portal::new(CodeBlock::new(file_contents))
         .constrain_vertical(true)
         .constrain_horizontal(true);
 
@@ -49,7 +43,7 @@ fn main() {
         // panels::Child::new(Point::new(100., 100.), text("and another panel")),
         // panels::Child::new(
         panels::Child::new(Point::new(50., 50.), child),
-        panels::Child::new(Point::new(100., 50.), code_block(file_contents2)),
+        panels::Child::new(Point::new(100., 50.), CodeBlock::new(file_contents2)),
         //     Point::new(-100., 500.),
         //     Flex::column().with_child(Button::new("HI")),
         // ),
